@@ -56,7 +56,7 @@ function MobileDashboard({ userName, income, expense, balance, month, year, rece
   return (
     <div style={{ background: "#0B0F1E", minHeight: "100%" }}>
       {/* Header */}
-      <div style={{ background: "linear-gradient(175deg,#170E3F 0%,#0C1835 65%,#0B0F1E 100%)", padding: "6px 24px 24px", position: "relative", overflow: "hidden" }}>
+      <div style={{ background: "linear-gradient(175deg,#170E3F 0%,#0C1835 65%,#0B0F1E 100%)", marginTop: "calc(-1 * env(safe-area-inset-top, 0px))", padding: "calc(env(safe-area-inset-top, 0px) + 14px) 24px 24px", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -50, right: -40, width: 200, height: 200, background: "radial-gradient(circle,rgba(123,110,246,.22),transparent 70%)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -60, left: -20, width: 180, height: 180, background: "radial-gradient(circle,rgba(45,212,191,.1),transparent 70%)", pointerEvents: "none" }} />
 
