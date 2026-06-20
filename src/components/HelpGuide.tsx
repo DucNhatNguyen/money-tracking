@@ -75,7 +75,7 @@ export default function HelpGuide() {
         aria-label="Hướng dẫn sử dụng"
         style={{
           position: "fixed",
-          bottom: 76,
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)",
           right: 16,
           width: 46,
           height: 46,

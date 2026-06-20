@@ -298,28 +298,31 @@ function AddBudgetPanel({
 
 function BudgetCard({
   item,
-  month,
-  year,
   editingId,
   editAmountText,
+  confirmingDeleteId,
   isPending,
-  onEditStart,
+  onEditToggle,
   onEditChange,
   onEditSave,
   onEditCancel,
+  onDeleteAsk,
+  onDeleteCancel,
 }: {
   item: BudgetItem;
-  month: number;
-  year: number;
   editingId: string | null;
   editAmountText: string;
+  confirmingDeleteId: string | null;
   isPending: boolean;
-  onEditStart: (id: string, amount: number) => void;
+  onEditToggle: (id: string, amount: number) => void;
   onEditChange: (val: string) => void;
   onEditSave: (item: BudgetItem) => void;
   onEditCancel: () => void;
+  onDeleteAsk: (id: string) => void;
+  onDeleteCancel: () => void;
 }) {
   const isEditing = editingId === item.id;
+  const isConfirming = confirmingDeleteId === item.id;
   const warn = item.pct >= 80 && !item.over;
 
   return (
@@ -327,13 +330,23 @@ function BudgetCard({
       style={{
         padding: 16,
         background: item.over ? "rgba(248,113,113,.06)" : "#141C30",
-        border: `1px solid ${item.over ? "rgba(248,113,113,.22)" : warn ? "rgba(251,191,36,.12)" : "rgba(255,255,255,.06)"}`,
+        border: `1px solid ${item.over ? "rgba(248,113,113,.22)" : warn ? "rgba(251,191,36,.12)" : isEditing ? "rgba(123,110,246,.3)" : "rgba(255,255,255,.06)"}`,
         borderRadius: 16,
+        transition: "border-color .15s",
       }}
     >
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      {/* Header — tap anywhere to toggle the edit form */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={`Sửa ngân sách ${item.categoryName}`}
+        onClick={() => onEditToggle(item.id, item.budgetAmount)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEditToggle(item.id, item.budgetAmount); }
+        }}
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, cursor: "pointer", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
           <div
             style={{
               width: 42,
@@ -349,7 +362,7 @@ function BudgetCard({
           >
             {item.categoryEmoji}
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <p style={{ color: "#C8D3E0", fontSize: 13, fontWeight: 600 }}>{item.categoryName}</p>
             <p style={{ color: item.over ? "#F87171" : "#334155", fontSize: 11, marginTop: 2 }}>
               {fmtVND(item.spentAmount)} / {fmtVND(item.budgetAmount)}
@@ -357,40 +370,37 @@ function BudgetCard({
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
           <span
             style={{
               color: item.over ? "#F87171" : warn ? "#FBBF24" : item.categoryColor,
               fontSize: 14,
               fontWeight: 700,
+              marginRight: 4,
             }}
           >
             {item.pct}%
           </span>
 
-          {/* Edit button */}
-          <button
-            onClick={() => onEditStart(item.id, item.budgetAmount)}
-            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, lineHeight: 0, opacity: 0.6 }}
-            title="Sửa ngân sách"
+          {/* Edit affordance — rotates when the form is open (part of the row tap) */}
+          <svg
+            viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round"
+            style={{ flexShrink: 0, transform: isEditing ? "rotate(180deg)" : "rotate(0deg)", transition: "transform .2s ease" }}
           >
-            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#94A3B8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z" />
+            <path d="M5 8l5 5 5-5" />
+          </svg>
+
+          {/* Delete — larger target, asks for confirmation */}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDeleteAsk(item.id); }}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 8, marginLeft: 2, lineHeight: 0, opacity: 0.55, WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
+            title="Xoá ngân sách"
+          >
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#F87171" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" />
             </svg>
           </button>
-
-          {/* Delete button */}
-          <form action={deleteBudgetAction.bind(null, item.id)} style={{ display: "inline" }}>
-            <button
-              type="submit"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, lineHeight: 0, opacity: 0.5 }}
-              title="Xoá ngân sách"
-            >
-              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="#F87171" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M6 7v5M10 7v5M3 4l1 9a1 1 0 001 1h6a1 1 0 001-1l1-9" />
-              </svg>
-            </button>
-          </form>
         </div>
       </div>
 
@@ -410,16 +420,54 @@ function BudgetCard({
           <button
             onClick={() => onEditSave(item)}
             disabled={isPending}
-            style={{ padding: "0 14px", background: "linear-gradient(135deg,#7B6EF6,#5B8DEF)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+            style={{ padding: "0 16px", background: "linear-gradient(135deg,#7B6EF6,#5B8DEF)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
           >
             {isPending ? "..." : "Lưu"}
           </button>
           <button
             onClick={onEditCancel}
-            style={{ padding: "0 10px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+            style={{ padding: "0 12px", background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 10, color: "#64748B", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
           >
             Huỷ
           </button>
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {isConfirming && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+            marginBottom: 10,
+            padding: "10px 12px",
+            background: "rgba(248,113,113,.08)",
+            border: "1px solid rgba(248,113,113,.2)",
+            borderRadius: 12,
+          }}
+        >
+          <span style={{ color: "#F87171", fontSize: 12, fontWeight: 500 }}>
+            Xoá ngân sách &ldquo;{item.categoryName}&rdquo;?
+          </span>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={onDeleteCancel}
+              style={{ padding: "7px 12px", background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 9, color: "#94A3B8", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Huỷ
+            </button>
+            <form action={deleteBudgetAction.bind(null, item.id)} style={{ display: "inline" }}>
+              <button
+                type="submit"
+                style={{ padding: "7px 14px", background: "#F87171", border: "none", borderRadius: 9, color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+              >
+                Xoá
+              </button>
+            </form>
+          </div>
         </div>
       )}
 
@@ -518,11 +566,24 @@ function useBudgetInteractions(month: number, year: number) {
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmountText, setEditAmountText] = useState("");
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleEditStart(id: string, amount: number) {
+    setConfirmingDeleteId(null);
     setEditingId(id);
     setEditAmountText(fmtAmountInput(String(amount)));
+  }
+
+  function handleEditCancel() {
+    setEditingId(null);
+    setEditAmountText("");
+  }
+
+  // Tap a card to toggle its edit form open/closed
+  function handleEditToggle(id: string, amount: number) {
+    if (editingId === id) handleEditCancel();
+    else handleEditStart(id, amount);
   }
 
   function handleEditSave(item: BudgetItem) {
@@ -543,11 +604,15 @@ function useBudgetInteractions(month: number, year: number) {
   return {
     showAdd, setShowAdd,
     editingId, editAmountText,
+    confirmingDeleteId,
     isPending,
     handleEditStart,
+    handleEditToggle,
     handleEditChange: (val: string) => setEditAmountText(fmtAmountInput(val)),
     handleEditSave,
-    handleEditCancel: () => { setEditingId(null); setEditAmountText(""); },
+    handleEditCancel,
+    handleDeleteAsk: (id: string) => { setEditingId(null); setConfirmingDeleteId(id); },
+    handleDeleteCancel: () => setConfirmingDeleteId(null),
   };
 }
 
@@ -556,14 +621,25 @@ function useBudgetInteractions(month: number, year: number) {
 function MobileBudget({ month, year, items, totalBudget, totalSpent, availableCategories }: Props) {
   const {
     showAdd, setShowAdd,
-    editingId, editAmountText, isPending,
-    handleEditStart, handleEditChange, handleEditSave, handleEditCancel,
+    editingId, editAmountText, confirmingDeleteId, isPending,
+    handleEditToggle, handleEditChange, handleEditSave, handleEditCancel,
+    handleDeleteAsk, handleDeleteCancel,
   } = useBudgetInteractions(month, year);
 
   return (
     <div style={{ background: "#0B0F1E", minHeight: "100%", paddingBottom: 24 }}>
-      {/* Header */}
-      <div style={{ padding: "4px 24px 16px" }}>
+      {/* Sticky header — title + add + month nav + overall summary stay pinned */}
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          background: "#0B0F1E",
+          marginTop: "calc(-1 * env(safe-area-inset-top, 0px))",
+          padding: "calc(env(safe-area-inset-top, 0px) + 8px) 24px 14px",
+          borderBottom: "1px solid rgba(255,255,255,.05)",
+        }}
+      >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <span style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800 }}>Ngân sách</span>
           {availableCategories.length > 0 && !showAdd && (
@@ -586,16 +662,14 @@ function MobileBudget({ month, year, items, totalBudget, totalSpent, availableCa
           )}
         </div>
         <MonthNav month={month} year={year} />
-      </div>
-
-      {/* Overall card */}
-      <div style={{ padding: "0 24px 16px" }}>
-        <OverallCard totalBudget={totalBudget} totalSpent={totalSpent} month={month} />
+        <div style={{ marginTop: 14 }}>
+          <OverallCard totalBudget={totalBudget} totalSpent={totalSpent} month={month} />
+        </div>
       </div>
 
       {/* Add panel */}
       {showAdd && (
-        <div style={{ padding: "0 24px 16px" }}>
+        <div style={{ padding: "16px 24px 0" }}>
           <AddBudgetPanel
             availableCategories={availableCategories}
             month={month}
@@ -606,7 +680,7 @@ function MobileBudget({ month, year, items, totalBudget, totalSpent, availableCa
       )}
 
       {/* Budget list or empty state */}
-      <div style={{ padding: "0 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ padding: "16px 24px 0", display: "flex", flexDirection: "column", gap: 10 }}>
         {items.length === 0 && !showAdd ? (
           <EmptyState onAdd={() => setShowAdd(true)} />
         ) : (
@@ -614,15 +688,16 @@ function MobileBudget({ month, year, items, totalBudget, totalSpent, availableCa
             <BudgetCard
               key={item.id}
               item={item}
-              month={month}
-              year={year}
               editingId={editingId}
               editAmountText={editAmountText}
+              confirmingDeleteId={confirmingDeleteId}
               isPending={isPending}
-              onEditStart={handleEditStart}
+              onEditToggle={handleEditToggle}
               onEditChange={handleEditChange}
               onEditSave={handleEditSave}
               onEditCancel={handleEditCancel}
+              onDeleteAsk={handleDeleteAsk}
+              onDeleteCancel={handleDeleteCancel}
             />
           ))
         )}
@@ -636,8 +711,9 @@ function MobileBudget({ month, year, items, totalBudget, totalSpent, availableCa
 function DesktopBudget({ month, year, items, totalBudget, totalSpent, availableCategories }: Props) {
   const {
     showAdd, setShowAdd,
-    editingId, editAmountText, isPending,
-    handleEditStart, handleEditChange, handleEditSave, handleEditCancel,
+    editingId, editAmountText, confirmingDeleteId, isPending,
+    handleEditToggle, handleEditChange, handleEditSave, handleEditCancel,
+    handleDeleteAsk, handleDeleteCancel,
   } = useBudgetInteractions(month, year);
 
   const overCount = items.filter((i) => i.over).length;
@@ -690,15 +766,16 @@ function DesktopBudget({ month, year, items, totalBudget, totalSpent, availableC
             <BudgetCard
               key={item.id}
               item={item}
-              month={month}
-              year={year}
               editingId={editingId}
               editAmountText={editAmountText}
+              confirmingDeleteId={confirmingDeleteId}
               isPending={isPending}
-              onEditStart={handleEditStart}
+              onEditToggle={handleEditToggle}
               onEditChange={handleEditChange}
               onEditSave={handleEditSave}
               onEditCancel={handleEditCancel}
+              onDeleteAsk={handleDeleteAsk}
+              onDeleteCancel={handleDeleteCancel}
             />
           ))
         )}
