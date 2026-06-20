@@ -437,7 +437,7 @@ export default function AppShell({
       {/* Mobile */}
       <div className="lg:hidden flex flex-col min-h-dvh" style={{ background: "#0B0F1E" }}>
         <main
-          className="flex-1 overflow-y-auto"
+          className="flex-1"
           style={{
             paddingTop: "env(safe-area-inset-top, 0px)",
             paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",

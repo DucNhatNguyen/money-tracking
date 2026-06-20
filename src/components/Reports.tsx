@@ -258,21 +258,29 @@ function CategoryList({ categories }: { categories: CatStat[] }) {
 function MobileReports({ month, year, income, expense, balance, categories, trend }: Props) {
   return (
     <div style={{ background: "#0B0F1E", minHeight: "100%", paddingBottom: 24 }}>
-      {/* Header */}
-      <div style={{ padding: "4px 24px 14px" }}>
+      {/* Sticky header + month nav + summary */}
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          background: "#0B0F1E",
+          marginTop: "calc(-1 * env(safe-area-inset-top, 0px))",
+          padding: "calc(env(safe-area-inset-top, 0px) + 8px) 24px 14px",
+          borderBottom: "1px solid rgba(255,255,255,.05)",
+        }}
+      >
         <span style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800 }}>Báo cáo</span>
         <div style={{ marginTop: 14 }}>
           <MonthNav month={month} year={year} />
         </div>
-      </div>
-
-      {/* Summary */}
-      <div style={{ padding: "0 24px 16px" }}>
-        <SummaryCards income={income} expense={expense} balance={balance} />
+        <div style={{ marginTop: 12 }}>
+          <SummaryCards income={income} expense={expense} balance={balance} />
+        </div>
       </div>
 
       {/* Bar chart */}
-      <div style={{ padding: "0 24px 16px" }}>
+      <div style={{ padding: "16px 24px 16px" }}>
         <p style={{ color: "#64748B", fontSize: 11, fontWeight: 600, letterSpacing: ".06em", marginBottom: 12 }}>
           XU HƯỚNG 6 THÁNG
         </p>

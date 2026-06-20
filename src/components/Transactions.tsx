@@ -167,7 +167,17 @@ function MobileTransactions({ transactions, income: _i, expense: _e, balance: _b
 
   return (
     <div style={{ background: "#0B0F1E", minHeight: "100%" }}>
-      <div style={{ padding: "4px 24px 14px" }}>
+      <div
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          background: "#0B0F1E",
+          marginTop: "calc(-1 * env(safe-area-inset-top, 0px))",
+          padding: "calc(env(safe-area-inset-top, 0px) + 8px) 24px 14px",
+          borderBottom: "1px solid rgba(255,255,255,.05)",
+        }}
+      >
         <div style={{ marginBottom: 14 }}>
           <span style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800 }}>Giao dịch</span>
         </div>
@@ -177,7 +187,7 @@ function MobileTransactions({ transactions, income: _i, expense: _e, balance: _b
       {groups.length === 0 ? (
         <EmptyState month={month} year={year} />
       ) : (
-        <div style={{ padding: "0 24px" }}>
+        <div style={{ padding: "12px 24px 0" }}>
           {groups.map((group) => (
             <div key={group.label} style={{ marginBottom: 16 }}>
               <div
