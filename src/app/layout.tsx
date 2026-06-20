@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
+import { getSession } from "@/lib/session";
 
 const font = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
@@ -14,13 +15,18 @@ export const metadata: Metadata = {
   description: "Ứng dụng theo dõi thu chi gia đình",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const session = await getSession();
+  const user = session.userId
+    ? { name: session.name, username: session.username }
+    : null;
+
   return (
     <html lang="vi" className={font.variable}>
       <body>
-        <AppShell>{children}</AppShell>
+        <AppShell user={user}>{children}</AppShell>
       </body>
     </html>
   );

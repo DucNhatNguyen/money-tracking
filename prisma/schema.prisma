@@ -1,0 +1,96 @@
+// Prisma schema — FinFamily money tracking app
+// Run: npx prisma generate  (after filling DATABASE_URL in .env)
+// Run: npx prisma migrate dev --name init  (to push to PostgreSQL)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+// Người dùng trong gia đình (multi-member household)
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  username     String?       @unique
+  password     String?       // bcrypt hash
+  avatarUrl    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  transactions Transaction[]
+  budgets      Budget[]
+  categories   Category[]
+}
+
+// Danh mục giao dịch (Ăn uống, Nhà cửa, Di chuyển, …)
+// isDefault = true → danh mục hệ thống, userId = null
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  emoji     String
+  color     String   // hex color, dùng cho chart & budget bar
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transactions Transaction[]
+  budgets      Budget[]
+}
+
+// Giao dịch thu / chi
+model Transaction {
+  id        String          @id @default(cuid())
+  type      TransactionType
+  amount    Decimal         @db.Decimal(15, 2) // VND, không dùng float
+  note      String?
+  date      DateTime        // ngày giao dịch (không phải createdAt)
+  imageUrl  String?         // ảnh hóa đơn (chụp ảnh hóa đơn)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([userId, type])
+  @@index([categoryId])
+}
+
+// Ngân sách theo danh mục × tháng × năm
+model Budget {
+  id        String   @id @default(cuid())
+  amount    Decimal  @db.Decimal(15, 2) // hạn mức chi tiêu
+  month     Int      // 1–12
+  year      Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Mỗi user chỉ có 1 budget / danh mục / tháng
+  @@unique([userId, categoryId, month, year])
+  @@index([userId, year, month])
+}

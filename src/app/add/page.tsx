@@ -1,5 +1,40 @@
+import { prisma } from "@/lib/prisma";
 import AddTransaction from "@/components/AddTransaction";
 
-export default function AddPage() {
-  return <AddTransaction />;
+function toDateStr(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export default async function AddPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string; year?: string }>;
+}) {
+  const sp = await searchParams;
+  const now = new Date();
+  const todayStr = toDateStr(now);
+
+  // Compute the default date based on which month the user came from
+  let defaultDate = todayStr;
+  if (sp?.month && sp?.year) {
+    const month = Math.min(12, Math.max(1, Number(sp.month)));
+    const year = Number(sp.year);
+    const isCurrentMonth = month === now.getMonth() + 1 && year === now.getFullYear();
+    if (!isCurrentMonth) {
+      // Past month: default to last day of that month so transaction falls inside it
+      const lastDay = new Date(year, month, 0);
+      defaultDate = toDateStr(lastDay);
+    }
+  }
+
+  const categories = await prisma.category.findMany({
+    where: { isDefault: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, emoji: true, color: true },
+  });
+
+  return <AddTransaction categories={categories} defaultDate={defaultDate} todayStr={todayStr} />;
 }

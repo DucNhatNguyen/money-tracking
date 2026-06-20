@@ -1,284 +1,430 @@
 "use client";
-import { useState } from "react";
+import Link from "next/link";
 
-const ALL_MONTHS = ["Tháng 5", "Tháng 4", "Tháng 3"];
+type TxCategory = { id: string; name: string; emoji: string; color: string };
+type Tx = {
+  id: string;
+  type: "INCOME" | "EXPENSE";
+  amount: number;
+  note: string;
+  date: string;
+  category: TxCategory;
+};
+type CatStat = { name: string; emoji: string; color: string; total: number; pct: number };
 
-const TRANSACTIONS_BY_DATE = [
-  {
-    label: "HÔM NAY — 16/05",
-    date: "16/05/2025",
-    items: [
-      { emoji: "🛒", name: "Đi chợ Vinmart", sub: "Ăn uống · 08:30", amount: "−450.000đ", expense: true },
-      { emoji: "🍜", name: "Ăn sáng phở", sub: "Ăn uống · 07:15", amount: "−75.000đ", expense: true },
-    ],
-  },
-  {
-    label: "HÔM QUA — 15/05",
-    date: "15/05/2025",
-    items: [
-      { emoji: "💰", name: "Lương tháng 5", sub: "Thu nhập · 09:00", amount: "+18.000.000đ", expense: false },
-      { emoji: "⚡", name: "Tiền điện nước", sub: "Nhà cửa · 14:20", amount: "−890.000đ", expense: true },
-      { emoji: "📚", name: "Học phí lớp toán", sub: "Giáo dục · 10:00", amount: "−2.500.000đ", expense: true },
-    ],
-  },
+type Props = {
+  transactions: Tx[];
+  income: number;
+  expense: number;
+  balance: number;
+  categories: CatStat[];
+  month: number;
+  year: number;
+  monthList: { month: number; year: number }[];
+};
+
+const MONTH_NAMES = [
+  "Tháng 1","Tháng 2","Tháng 3","Tháng 4","Tháng 5","Tháng 6",
+  "Tháng 7","Tháng 8","Tháng 9","Tháng 10","Tháng 11","Tháng 12",
 ];
 
-const ALL_TRANSACTIONS = [
-  { emoji: "🛒", name: "Đi chợ Vinmart", category: "Ăn uống", date: "16/05/2025", time: "08:30", amount: "−450.000đ", expense: true },
-  { emoji: "🍜", name: "Ăn sáng phở", category: "Ăn uống", date: "16/05/2025", time: "07:15", amount: "−75.000đ", expense: true },
-  { emoji: "💰", name: "Lương tháng 5", category: "Thu nhập", date: "15/05/2025", time: "09:00", amount: "+18.000.000đ", expense: false },
-  { emoji: "⚡", name: "Tiền điện nước", category: "Nhà cửa", date: "15/05/2025", time: "14:20", amount: "−890.000đ", expense: true },
-  { emoji: "📚", name: "Học phí lớp toán", category: "Giáo dục", date: "15/05/2025", time: "10:00", amount: "−2.500.000đ", expense: true },
-  { emoji: "🎮", name: "Game online 3 tháng", category: "Giải trí", date: "14/05/2025", time: "21:00", amount: "−450.000đ", expense: true },
-  { emoji: "🚗", name: "Xăng xe máy", category: "Di chuyển", date: "13/05/2025", time: "17:30", amount: "−150.000đ", expense: true },
-];
+const CIRC = 2 * Math.PI * 52;
 
-// Mobile Transactions
-function MobileTransactions() {
-  const [activeMonth, setActiveMonth] = useState("Tháng 5");
+function fmt(n: number) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M đ";
+  if (n >= 1_000) return Math.round(n / 1_000) + "K đ";
+  return n.toLocaleString("vi-VN") + "đ";
+}
 
+function fmtFull(n: number) {
+  return n.toLocaleString("vi-VN") + "đ";
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function groupByDay(txs: Tx[]) {
+  const map = new Map<string, { label: string; items: Tx[] }>();
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  for (const tx of txs) {
+    const d = new Date(tx.date);
+    const key = d.toDateString();
+    if (!map.has(key)) {
+      const dd = pad2(d.getDate());
+      const mm = pad2(d.getMonth() + 1);
+      let label: string;
+      if (key === today.toDateString()) label = `HÔM NAY — ${dd}/${mm}`;
+      else if (key === yesterday.toDateString()) label = `HÔM QUA — ${dd}/${mm}`;
+      else label = `${dd}/${mm}/${d.getFullYear()}`;
+      map.set(key, { label, items: [] });
+    }
+    map.get(key)!.items.push(tx);
+  }
+  return Array.from(map.values());
+}
+
+function buildArcs(cats: CatStat[]) {
+  let cumulative = 0;
+  return cats.slice(0, 5).map((c) => {
+    const dash = (c.pct / 100) * CIRC;
+    const arc = {
+      color: c.color,
+      dashArray: `${dash.toFixed(2)} ${(CIRC - dash).toFixed(2)}`,
+      dashOffset: -cumulative,
+    };
+    cumulative += dash;
+    return arc;
+  });
+}
+
+function MonthTabs({ monthList, month, year }: Pick<Props, "monthList" | "month" | "year">) {
   return (
-    <div style={{ background: "#0B0F1E", minHeight: "100%" }}>
-      {/* Header */}
-      <div style={{ padding: "4px 24px 14px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <span style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800 }}>Giao dịch</span>
-          <div
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        overflowX: "auto",
+        paddingBottom: 2,
+        WebkitOverflowScrolling: "touch",
+        scrollbarWidth: "none",
+      } as React.CSSProperties}
+    >
+      {monthList.map((m) => {
+        const active = m.month === month && m.year === year;
+        return (
+          <Link
+            key={`${m.month}-${m.year}`}
+            href={`/transactions?month=${m.month}&year=${m.year}`}
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 12,
-              background: "rgba(255,255,255,.05)",
-              border: "1px solid rgba(255,255,255,.08)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              flexShrink: 0,
+              padding: "8px 18px",
+              background: active
+                ? "linear-gradient(135deg,#7B6EF6,#2DD4BF)"
+                : "rgba(255,255,255,.05)",
+              border: active ? "none" : "1px solid rgba(255,255,255,.07)",
+              borderRadius: 10,
+              cursor: "pointer",
+              textDecoration: "none",
             }}
           >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round">
-              <line x1="4" y1="6" x2="20" y2="6" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="18" x2="20" y2="18" />
-            </svg>
-          </div>
-        </div>
-        {/* Month tabs */}
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
-          {ALL_MONTHS.map((month) => (
-            <button
-              key={month}
-              onClick={() => setActiveMonth(month)}
-              style={{
-                flexShrink: 0,
-                padding: "7px 18px",
-                background: activeMonth === month ? "linear-gradient(135deg,#7B6EF6,#2DD4BF)" : "rgba(255,255,255,.05)",
-                border: activeMonth === month ? "none" : "1px solid rgba(255,255,255,.07)",
-                borderRadius: 10,
-                cursor: "pointer",
-              }}
-            >
-              <span
-                style={{
-                  color: activeMonth === month ? "#fff" : "#4A5568",
-                  fontSize: 13,
-                  fontWeight: activeMonth === month ? 600 : 400,
-                }}
-              >
-                {month}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Transaction groups */}
-      <div style={{ padding: "0 24px" }}>
-        {TRANSACTIONS_BY_DATE.map((group) => (
-          <div key={group.label} style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                color: "#2D3B55",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: ".06em",
-                textTransform: "uppercase",
-                marginBottom: 8,
-              }}
-            >
-              {group.label}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {group.items.map((tx, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "10px 0",
-                    borderBottom: i < group.items.length - 1 ? "1px solid rgba(255,255,255,.04)" : undefined,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 13,
-                      background: tx.expense ? "rgba(248,113,113,.12)" : "rgba(45,212,191,.12)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 18,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {tx.emoji}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ color: "#C8D3E0", fontSize: 13, fontWeight: 500, marginBottom: 1 }}>{tx.name}</p>
-                    <p style={{ color: "#334155", fontSize: 11 }}>{tx.sub}</p>
-                  </div>
-                  <span style={{ color: tx.expense ? "#F87171" : "#2DD4BF", fontSize: 13, fontWeight: 600 }}>
-                    {tx.amount}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+            <span style={{ color: active ? "#fff" : "#4A5568", fontSize: 13, fontWeight: active ? 600 : 400 }}>
+              {MONTH_NAMES[m.month - 1]}
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 }
 
-// Desktop Transactions with right panel
-function DesktopTransactions() {
+function EmptyState({ month, year }: { month: number; year: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 24px", gap: 12 }}>
+      <div
+        style={{
+          width: 60,
+          height: 60,
+          borderRadius: 20,
+          background: "rgba(255,255,255,.04)",
+          border: "1px solid rgba(255,255,255,.07)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 26,
+        }}
+      >
+        📭
+      </div>
+      <p style={{ color: "#C8D3E0", fontSize: 14, fontWeight: 600 }}>Không có giao dịch</p>
+      <p style={{ color: "#334155", fontSize: 12, textAlign: "center" }}>
+        {MONTH_NAMES[month - 1]}/{year} chưa có giao dịch nào.
+      </p>
+      <Link
+        href={`/add?month=${month}&year=${year}`}
+        style={{
+          marginTop: 4,
+          padding: "10px 20px",
+          background: "linear-gradient(135deg,#7B6EF6,#2DD4BF)",
+          borderRadius: 10,
+          color: "#fff",
+          fontSize: 13,
+          fontWeight: 600,
+          textDecoration: "none",
+        }}
+      >
+        + Thêm giao dịch
+      </Link>
+    </div>
+  );
+}
+
+function MobileTransactions({ transactions, income: _i, expense: _e, balance: _b, categories: _c, month, year, monthList }: Props) {
+  const groups = groupByDay(transactions);
+
+  return (
+    <div style={{ background: "#0B0F1E", minHeight: "100%" }}>
+      <div style={{ padding: "4px 24px 14px" }}>
+        <div style={{ marginBottom: 14 }}>
+          <span style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800 }}>Giao dịch</span>
+        </div>
+        <MonthTabs monthList={monthList} month={month} year={year} />
+      </div>
+
+      {groups.length === 0 ? (
+        <EmptyState month={month} year={year} />
+      ) : (
+        <div style={{ padding: "0 24px" }}>
+          {groups.map((group) => (
+            <div key={group.label} style={{ marginBottom: 16 }}>
+              <div
+                style={{
+                  color: "#2D3B55",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: ".06em",
+                  textTransform: "uppercase",
+                  marginBottom: 8,
+                }}
+              >
+                {group.label}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {group.items.map((tx, i) => {
+                  const isExpense = tx.type === "EXPENSE";
+                  const d = new Date(tx.date);
+                  const time = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+                  return (
+                    <div
+                      key={tx.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "12px 0",
+                        borderBottom: i < group.items.length - 1 ? "1px solid rgba(255,255,255,.04)" : undefined,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: 13,
+                          background: isExpense ? "rgba(248,113,113,.12)" : "rgba(45,212,191,.12)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 18,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {tx.category.emoji}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p
+                          style={{
+                            color: "#C8D3E0",
+                            fontSize: 13,
+                            fontWeight: 500,
+                            marginBottom: 2,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {tx.note || tx.category.name}
+                        </p>
+                        <p style={{ color: "#334155", fontSize: 11 }}>
+                          {tx.category.name} · {time}
+                        </p>
+                      </div>
+                      <span
+                        style={{
+                          color: isExpense ? "#F87171" : "#2DD4BF",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {isExpense ? "−" : "+"}{fmtFull(tx.amount)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DesktopTransactions({ transactions, income, expense, balance, categories, month, year, monthList }: Props) {
+  const arcs = buildArcs(categories);
+
   return (
     <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
       {/* Main */}
-      <div style={{ flex: 1, padding: "22px 24px", display: "flex", flexDirection: "column", gap: 0, overflow: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <div>
+      <div
+        style={{
+          flex: 1,
+          padding: "22px 24px",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, gap: 12 }}>
+          <div style={{ flexShrink: 0 }}>
             <h2 style={{ color: "#E2E8F0", fontSize: 20, fontWeight: 800, marginBottom: 2 }}>Giao dịch</h2>
-            <p style={{ color: "#3D4B60", fontSize: 12 }}>Tháng 5/2025 · 24 giao dịch</p>
+            <p style={{ color: "#3D4B60", fontSize: 12 }}>
+              {MONTH_NAMES[month - 1]}/{year} · {transactions.length} giao dịch
+            </p>
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <MonthTabs monthList={monthList} month={month} year={year} />
+            <Link
+              href={`/add?month=${month}&year=${year}`}
               style={{
-                padding: "7px 14px",
-                background: "rgba(255,255,255,.05)",
-                border: "1px solid rgba(255,255,255,.07)",
-                borderRadius: 9,
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-              }}
-            >
-              <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="#64748B" strokeWidth="1.5">
-                <path d="M3 5h14M6 10h8M9 15h2" />
-              </svg>
-              <span style={{ color: "#64748B", fontSize: 12 }}>Lọc</span>
-            </div>
-            <div
-              style={{
-                padding: "7px 16px",
+                padding: "8px 16px",
                 background: "linear-gradient(135deg,#7B6EF6,#2DD4BF)",
                 borderRadius: 9,
-                cursor: "pointer",
+                textDecoration: "none",
+                flexShrink: 0,
               }}
             >
               <span style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>+ Thêm mới</span>
-            </div>
+            </Link>
           </div>
         </div>
 
         {/* Stats row */}
         <div style={{ display: "flex", gap: 10, marginBottom: 16, flexShrink: 0 }}>
           {[
-            { label: "Thu nhập", value: "+28.500.000đ", color: "#2DD4BF" },
-            { label: "Chi tiêu", value: "−12.650.000đ", color: "#F87171" },
-            { label: "Tiết kiệm", value: "+15.850.000đ", color: "#7B6EF6" },
-            { label: "Số giao dịch", value: "24", color: "#E2E8F0" },
+            { label: "Thu nhập", value: fmtFull(income), color: "#2DD4BF", prefix: "+" },
+            { label: "Chi tiêu", value: fmtFull(expense), color: "#F87171", prefix: "−" },
+            {
+              label: "Tiết kiệm",
+              value: fmtFull(Math.abs(balance)),
+              color: balance >= 0 ? "#7B6EF6" : "#F87171",
+              prefix: balance >= 0 ? "+" : "−",
+            },
+            { label: "Giao dịch", value: String(transactions.length), color: "#E2E8F0", prefix: "" },
           ].map((stat) => (
             <div key={stat.label} style={{ flex: 1, padding: "12px 14px", background: "#141C30", borderRadius: 12 }}>
               <p style={{ color: "#2D3B55", fontSize: 10, marginBottom: 3 }}>{stat.label}</p>
-              <p style={{ color: stat.color, fontSize: 16, fontWeight: 800 }}>{stat.value}</p>
+              <p style={{ color: stat.color, fontSize: 16, fontWeight: 800 }}>
+                {stat.prefix}{stat.value}
+              </p>
             </div>
           ))}
         </div>
 
-        {/* Table header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            padding: "0 14px 8px",
-            borderBottom: "1px solid rgba(255,255,255,.05)",
-            flexShrink: 0,
-          }}
-        >
-          {["Giao dịch", "Danh mục", "Ngày", "Số tiền"].map((col, i) => (
-            <span
-              key={col}
-              style={{
-                flex: i === 0 ? 2 : 1,
-                color: "#2D3B55",
-                fontSize: 10,
-                fontWeight: 600,
-                letterSpacing: ".07em",
-                textTransform: "uppercase",
-                textAlign: i === 3 ? "right" : "left",
-              }}
-            >
-              {col}
-            </span>
-          ))}
-        </div>
-
-        {/* Rows */}
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          {ALL_TRANSACTIONS.map((tx, i) => (
+        {/* Table */}
+        {transactions.length === 0 ? (
+          <EmptyState month={month} year={year} />
+        ) : (
+          <>
             <div
-              key={i}
               style={{
                 display: "flex",
                 alignItems: "center",
-                padding: "11px 14px",
-                borderBottom: "1px solid rgba(255,255,255,.025)",
-                background: !tx.expense ? "rgba(45,212,191,.025)" : undefined,
+                padding: "0 14px 8px",
+                borderBottom: "1px solid rgba(255,255,255,.05)",
+                flexShrink: 0,
               }}
             >
-              <div style={{ flex: 2, display: "flex", alignItems: "center", gap: 10 }}>
-                <div
+              {["Giao dịch", "Danh mục", "Ngày", "Số tiền"].map((col, i) => (
+                <span
+                  key={col}
                   style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 10,
-                    background: tx.expense ? "rgba(248,113,113,.1)" : "rgba(45,212,191,.1)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 15,
-                    flexShrink: 0,
+                    flex: i === 0 ? 2 : 1,
+                    color: "#2D3B55",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: ".07em",
+                    textTransform: "uppercase",
+                    textAlign: i === 3 ? "right" : "left",
                   }}
                 >
-                  {tx.emoji}
-                </div>
-                <div>
-                  <p style={{ color: "#C8D3E0", fontSize: 13, fontWeight: 500, marginBottom: 1 }}>{tx.name}</p>
-                  <p style={{ color: "#2D3B55", fontSize: 11 }}>{tx.time}</p>
-                </div>
-              </div>
-              <span style={{ flex: 1, color: "#4A5568", fontSize: 12 }}>{tx.category}</span>
-              <span style={{ flex: 1, color: "#4A5568", fontSize: 12 }}>{tx.date}</span>
-              <span
-                style={{ flex: 1, color: tx.expense ? "#F87171" : "#2DD4BF", fontSize: 13, fontWeight: 600, textAlign: "right" }}
-              >
-                {tx.amount}
-              </span>
+                  {col}
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
+            <div style={{ flex: 1, overflowY: "auto" }}>
+              {transactions.map((tx) => {
+                const isExpense = tx.type === "EXPENSE";
+                const d = new Date(tx.date);
+                const dateStr = `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+                const timeStr = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+                return (
+                  <div
+                    key={tx.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "11px 14px",
+                      borderBottom: "1px solid rgba(255,255,255,.025)",
+                      background: !isExpense ? "rgba(45,212,191,.025)" : undefined,
+                    }}
+                  >
+                    <div style={{ flex: 2, display: "flex", alignItems: "center", gap: 10 }}>
+                      <div
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 10,
+                          background: isExpense ? "rgba(248,113,113,.1)" : "rgba(45,212,191,.1)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 15,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {tx.category.emoji}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <p
+                          style={{
+                            color: "#C8D3E0",
+                            fontSize: 13,
+                            fontWeight: 500,
+                            marginBottom: 1,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {tx.note || tx.category.name}
+                        </p>
+                        <p style={{ color: "#2D3B55", fontSize: 11 }}>{timeStr}</p>
+                      </div>
+                    </div>
+                    <span style={{ flex: 1, color: "#4A5568", fontSize: 12 }}>{tx.category.name}</span>
+                    <span style={{ flex: 1, color: "#4A5568", fontSize: 12 }}>{dateStr}</span>
+                    <span
+                      style={{
+                        flex: 1,
+                        color: isExpense ? "#F87171" : "#2DD4BF",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        textAlign: "right",
+                      }}
+                    >
+                      {isExpense ? "−" : "+"}{fmtFull(tx.amount)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Right panel */}
@@ -295,92 +441,114 @@ function DesktopTransactions() {
           overflowY: "auto",
         }}
       >
-        <h3 style={{ color: "#E2E8F0", fontSize: 15, fontWeight: 700 }}>Phân tích tháng 5</h3>
+        <h3 style={{ color: "#E2E8F0", fontSize: 15, fontWeight: 700 }}>
+          Phân tích {MONTH_NAMES[month - 1]}
+        </h3>
 
         {/* Donut chart */}
         <div style={{ background: "#141C30", borderRadius: 16, padding: 14, display: "flex", justifyContent: "center" }}>
-          <svg viewBox="0 0 160 160" width="134" height="134">
-            <circle cx="80" cy="80" r="52" fill="none" stroke="#0B0F1E" strokeWidth="20" />
-            <circle cx="80" cy="80" r="52" fill="none" stroke="#7B6EF6" strokeWidth="20" strokeDasharray="114 213" transform="rotate(-90 80 80)" />
-            <circle cx="80" cy="80" r="52" fill="none" stroke="#2DD4BF" strokeWidth="20" strokeDasharray="59 268" strokeDashoffset="-114" transform="rotate(-90 80 80)" />
-            <circle cx="80" cy="80" r="52" fill="none" stroke="#FFD93D" strokeWidth="20" strokeDasharray="79 248" strokeDashoffset="-173" transform="rotate(-90 80 80)" />
-            <circle cx="80" cy="80" r="52" fill="none" stroke="#F87171" strokeWidth="20" strokeDasharray="75 252" strokeDashoffset="-252" transform="rotate(-90 80 80)" />
-            <text x="80" y="76" textAnchor="middle" fill="#E2E8F0" fontSize="13" fontWeight="700" fontFamily="inherit">12.65M đ</text>
-            <text x="80" y="91" textAnchor="middle" fill="#475569" fontSize="9" fontFamily="inherit">chi tiêu</text>
-          </svg>
+          {categories.length === 0 ? (
+            <div style={{ height: 134, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <span style={{ fontSize: 28 }}>📊</span>
+              <p style={{ color: "#334155", fontSize: 12 }}>Chưa có dữ liệu</p>
+            </div>
+          ) : (
+            <svg viewBox="0 0 160 160" width="134" height="134">
+              <circle cx="80" cy="80" r="52" fill="none" stroke="#0B0F1E" strokeWidth="20" />
+              {arcs.map((arc, i) => (
+                <circle
+                  key={i}
+                  cx="80"
+                  cy="80"
+                  r="52"
+                  fill="none"
+                  stroke={arc.color}
+                  strokeWidth="20"
+                  strokeDasharray={arc.dashArray}
+                  strokeDashoffset={arc.dashOffset}
+                  transform="rotate(-90 80 80)"
+                />
+              ))}
+              <text x="80" y="76" textAnchor="middle" fill="#E2E8F0" fontSize="12" fontWeight="700" fontFamily="inherit">
+                {fmt(expense)}
+              </text>
+              <text x="80" y="91" textAnchor="middle" fill="#475569" fontSize="9" fontFamily="inherit">
+                chi tiêu
+              </text>
+            </svg>
+          )}
         </div>
 
         {/* Category legend */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {[
-            { color: "#7B6EF6", label: "Ăn uống", pct: "35%", val: "4.43M" },
-            { color: "#FFD93D", label: "Nhà cửa", pct: "24%", val: "3.04M" },
-            { color: "#F87171", label: "Khác", pct: "23%", val: "2.9M" },
-            { color: "#2DD4BF", label: "Di chuyển", pct: "18%", val: "2.28M" },
-          ].map((cat) => (
-            <div key={cat.label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 2, background: cat.color, flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                  <span style={{ color: "#C8D3E0", fontSize: 12, fontWeight: 500 }}>{cat.label}</span>
-                  <span style={{ color: "#C8D3E0", fontSize: 12, fontWeight: 700 }}>{cat.pct} · {cat.val}</span>
+        {categories.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {categories.slice(0, 5).map((cat) => (
+              <div key={cat.name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>{cat.emoji}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                    <span style={{ color: "#C8D3E0", fontSize: 12, fontWeight: 500 }}>{cat.name}</span>
+                    <span style={{ color: "#94A3B8", fontSize: 11, fontWeight: 700 }}>
+                      {cat.pct}% · {fmt(cat.total)}
+                    </span>
+                  </div>
+                  <div style={{ height: 3, background: "#0B0F1E", borderRadius: 2 }}>
+                    <div style={{ width: `${cat.pct}%`, height: "100%", background: cat.color, borderRadius: 2 }} />
+                  </div>
                 </div>
-                <div style={{ height: 3, background: "#141C30", borderRadius: 2 }}>
-                  <div style={{ width: cat.pct, height: "100%", background: cat.color, borderRadius: 2 }} />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Budget summary */}
-        <div style={{ background: "#141C30", borderRadius: 14, padding: 14 }}>
-          <p style={{ color: "#94A3B8", fontSize: 11, fontWeight: 600, letterSpacing: ".04em", marginBottom: 10 }}>
-            NGÂN SÁCH THÁNG 5
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { emoji: "🍜", label: "Ăn uống", pct: "74% ✓", color: "#2DD4BF" },
-              { emoji: "🚗", label: "Di chuyển", pct: "64%", color: "#7B6EF6" },
-              { emoji: "🎮", label: "Giải trí", pct: "120% ⚠", color: "#F87171", over: true },
-              { emoji: "🛍️", label: "Mua sắm", pct: "27%", color: "#64748B" },
-            ].map((item) => (
-              <div
-                key={item.label}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  padding: item.over ? "8px 10px" : undefined,
-                  background: item.over ? "rgba(248,113,113,.07)" : undefined,
-                  border: item.over ? "1px solid rgba(248,113,113,.18)" : undefined,
-                  borderRadius: item.over ? 8 : undefined,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 14 }}>{item.emoji}</span>
-                  <span style={{ color: item.over ? "#F87171" : "#C8D3E0", fontSize: 12, fontWeight: item.over ? 500 : 400 }}>
-                    {item.label}
-                  </span>
-                </div>
-                <span style={{ color: item.color, fontSize: 12, fontWeight: 700 }}>{item.pct}</span>
               </div>
             ))}
           </div>
-        </div>
+        )}
+
+        {/* Income summary */}
+        {(income > 0 || expense > 0) && (
+          <div style={{ background: "#141C30", borderRadius: 14, padding: 14 }}>
+            <p style={{ color: "#94A3B8", fontSize: 11, fontWeight: 600, letterSpacing: ".04em", marginBottom: 10 }}>
+              TỔNG KẾT THÁNG
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {income > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#64748B", fontSize: 12 }}>Thu nhập</span>
+                  <span style={{ color: "#2DD4BF", fontSize: 12, fontWeight: 600 }}>+{fmtFull(income)}</span>
+                </div>
+              )}
+              {expense > 0 && (
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#64748B", fontSize: 12 }}>Chi tiêu</span>
+                  <span style={{ color: "#F87171", fontSize: 12, fontWeight: 600 }}>−{fmtFull(expense)}</span>
+                </div>
+              )}
+              <div style={{ height: 1, background: "rgba(255,255,255,.05)", margin: "2px 0" }} />
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "#94A3B8", fontSize: 12, fontWeight: 600 }}>Tiết kiệm</span>
+                <span
+                  style={{
+                    color: balance >= 0 ? "#7B6EF6" : "#F87171",
+                    fontSize: 13,
+                    fontWeight: 800,
+                  }}
+                >
+                  {balance >= 0 ? "+" : "−"}{fmtFull(Math.abs(balance))}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-export default function Transactions() {
+export default function Transactions(props: Props) {
   return (
     <>
       <div className="lg:hidden">
-        <MobileTransactions />
+        <MobileTransactions {...props} />
       </div>
       <div className="hidden lg:flex h-full">
-        <DesktopTransactions />
+        <DesktopTransactions {...props} />
       </div>
     </>
   );
