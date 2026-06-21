@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
+import { logoutAction } from "@/app/actions/auth";
 
 interface RecentTx {
   id: string;
@@ -53,8 +55,12 @@ function QuickAction({ emoji, label, color, bg }: { emoji: string; label: string
 
 function MobileDashboard({ userName, income, expense, balance, month, year, recentTransactions }: DashboardProps) {
   const initial = userName?.[0]?.toUpperCase() ?? "?";
+  const [showMenu, setShowMenu] = useState(false);
   return (
     <div style={{ background: "#0B0F1E", minHeight: "100%" }}>
+      {showMenu && (
+        <div onClick={() => setShowMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 50 }} />
+      )}
       {/* Header */}
       <div style={{ background: "linear-gradient(175deg,#170E3F 0%,#0C1835 65%,#0B0F1E 100%)", marginTop: "calc(-1 * env(safe-area-inset-top, 0px))", padding: "calc(env(safe-area-inset-top, 0px) + 14px) 24px 24px", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", top: -50, right: -40, width: 200, height: 200, background: "radial-gradient(circle,rgba(123,110,246,.22),transparent 70%)", pointerEvents: "none" }} />
@@ -66,8 +72,29 @@ function MobileDashboard({ userName, income, expense, balance, month, year, rece
             <p style={{ color: "#475569", fontSize: 13, marginBottom: 2 }}>Xin chào 👋</p>
             <p style={{ color: "#E2E8F0", fontSize: 18, fontWeight: 700 }}>{userName}</p>
           </div>
-          <div style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#7B6EF6,#2DD4BF)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 800 }}>
-            {initial}
+          <div style={{ position: "relative", zIndex: 51 }}>
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              style={{ width: 38, height: 38, borderRadius: "50%", background: "linear-gradient(135deg,#7B6EF6,#2DD4BF)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 800, border: "none", cursor: "pointer", padding: 0 }}
+            >
+              {initial}
+            </button>
+            {showMenu && (
+              <div style={{ position: "absolute", top: 46, right: 0, background: "#131B2E", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: 12, minWidth: 180, zIndex: 52, boxShadow: "0 8px 32px rgba(0,0,0,.6)" }}>
+                <p style={{ color: "#64748B", fontSize: 11, fontWeight: 600, letterSpacing: ".06em", marginBottom: 6 }}>TÀI KHOẢN</p>
+                <p style={{ color: "#E2E8F0", fontSize: 14, fontWeight: 600 }}>{userName}</p>
+                <div style={{ height: 1, background: "rgba(255,255,255,.06)", margin: "10px 0" }} />
+                <form action={logoutAction}>
+                  <button type="submit" style={{ width: "100%", padding: "9px 12px", background: "rgba(248,113,113,.08)", border: "1px solid rgba(248,113,113,.15)", borderRadius: 10, display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontFamily: "inherit" }}>
+                    <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="#F87171" strokeWidth="1.6" strokeLinecap="round">
+                      <path d="M7 3H4a1 1 0 00-1 1v12a1 1 0 001 1h3" />
+                      <path d="M13 14l3-4-3-4M16 10H8" />
+                    </svg>
+                    <span style={{ color: "#F87171", fontSize: 13, fontWeight: 600 }}>Đăng xuất</span>
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         </div>
 

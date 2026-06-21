@@ -175,6 +175,55 @@ function BottomNav({ pathname }: { pathname: string }) {
   );
 }
 
+function MobileTopbar({ user }: { user: User | null }) {
+  const initial = user?.name?.[0]?.toUpperCase() ?? "?";
+  return (
+    <header
+      style={{
+        background: "#0D1322",
+        borderBottom: "1px solid rgba(255,255,255,.05)",
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        flexShrink: 0,
+      }}
+    >
+      <div style={{ height: 54, padding: "0 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#7B6EF6,#2DD4BF)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ color: "#fff", fontSize: 13, fontWeight: 800 }}>F</span>
+          </div>
+          <span style={{ color: "#E2E8F0", fontSize: 15, fontWeight: 800 }}>FinFamily</span>
+        </div>
+
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            title="Đăng xuất"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              padding: "5px 10px 5px 5px",
+              background: "rgba(255,255,255,.05)",
+              border: "1px solid rgba(255,255,255,.08)",
+              borderRadius: 20,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <div style={{ width: 26, height: 26, borderRadius: "50%", background: "linear-gradient(135deg,#7B6EF6,#2DD4BF)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 800 }}>
+              {initial}
+            </div>
+            <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="#F87171" strokeWidth="1.6" strokeLinecap="round">
+              <path d="M7 3H4a1 1 0 00-1 1v12a1 1 0 001 1h3" />
+              <path d="M13 14l3-4-3-4M16 10H8" />
+            </svg>
+          </button>
+        </form>
+      </div>
+    </header>
+  );
+}
+
 function SidebarNav({ pathname, user }: { pathname: string; user: User | null }) {
   const initial = user?.name?.[0]?.toUpperCase() ?? "?";
 
@@ -436,10 +485,11 @@ export default function AppShell({
     <>
       {/* Mobile */}
       <div className="lg:hidden flex flex-col min-h-dvh" style={{ background: "#0B0F1E" }}>
+        {pathname !== "/" && <MobileTopbar user={user} />}
         <main
           className="flex-1"
           style={{
-            paddingTop: "env(safe-area-inset-top, 0px)",
+            paddingTop: pathname === "/" ? "env(safe-area-inset-top, 0px)" : 0,
             paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
           }}
         >
