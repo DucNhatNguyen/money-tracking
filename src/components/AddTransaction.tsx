@@ -165,8 +165,13 @@ export default function AddTransaction({
 
   const saveBtn = (
     <button type="submit" disabled={isPending}
-      style={{ width: "100%", height: 52, background: isPending ? "rgba(123,110,246,.4)" : gradientBtn, borderRadius: 16, border: "none", cursor: isPending ? "default" : "pointer", boxShadow: isPending ? "none" : `0 8px 24px ${accent}44`, transition: "box-shadow .15s", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}>
-      <span style={{ color: "#fff", fontSize: 15, fontWeight: 700 }}>
+      style={{ width: "100%", height: 52, background: isPending ? "rgba(123,110,246,.4)" : gradientBtn, borderRadius: 16, border: "none", cursor: isPending ? "default" : "pointer", boxShadow: isPending ? "none" : `0 8px 24px ${accent}44`, transition: "all .2s", WebkitTapHighlightColor: "transparent", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 } as React.CSSProperties}>
+      {isPending && (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.8)" strokeWidth="2.5" strokeLinecap="round" style={{ animation: "spin 0.8s linear infinite", flexShrink: 0 }}>
+          <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+        </svg>
+      )}
+      <span style={{ color: isPending ? "rgba(255,255,255,.75)" : "#fff", fontSize: 15, fontWeight: 700 }}>
         {isPending ? "Đang lưu..." : type === "expense" ? "Lưu chi tiêu" : "Lưu thu nhập"}
       </span>
     </button>

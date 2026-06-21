@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { logoutAction } from "@/app/actions/auth";
 import HelpGuide from "@/components/HelpGuide";
 
@@ -60,118 +61,140 @@ function getActiveFlex(pathname: string): number {
 }
 
 function BottomNav({ pathname }: { pathname: string }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const af = getActiveFlex(pathname);
   const mult = (2 * (af >= 0 ? af : 0) + 1) / 10;
   const lineLeft = `calc((100% - 38px) * ${mult} - 2px)`;
 
+  function navigate(href: string) {
+    startTransition(() => { router.push(href); });
+  }
+
   return (
-    <nav
-      style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 40,
-        background: "#0D1322",
-        borderRadius: "20px 20px 0 0",
-        boxShadow: "0 -8px 32px rgba(0,0,0,0.45), 0 -1px 0 rgba(255,255,255,0.05)",
-      }}
-    >
-      <div
-        aria-hidden="true"
+    <>
+      {isPending && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, height: 3,
+          zIndex: 100, background: "rgba(123,110,246,.15)", overflow: "hidden",
+        }}>
+          <div className="nav-progress-bar" />
+        </div>
+      )}
+      <nav
         style={{
-          position: "absolute",
-          top: 0,
-          height: 3,
-          width: 42,
-          borderRadius: "0 0 4px 4px",
-          background: "linear-gradient(90deg,#7B6EF6,#2DD4BF)",
-          left: lineLeft,
-          opacity: af >= 0 ? 1 : 0,
-          transition: "left 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease",
-          pointerEvents: "none",
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 40,
+          background: "#0D1322",
+          borderRadius: "20px 20px 0 0",
+          boxShadow: "0 -8px 32px rgba(0,0,0,0.45), 0 -1px 0 rgba(255,255,255,0.05)",
         }}
-      />
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: 0,
+            height: 3,
+            width: 42,
+            borderRadius: "0 0 4px 4px",
+            background: "linear-gradient(90deg,#7B6EF6,#2DD4BF)",
+            left: lineLeft,
+            opacity: af >= 0 ? 1 : 0,
+            transition: "left 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.18s ease",
+            pointerEvents: "none",
+          }}
+        />
 
-      <div style={{ height: 62, display: "flex", alignItems: "flex-end", padding: "0 12px", position: "relative" }}>
-        {NAV.map((item) => {
-          if (!item) {
-            return (
-              <div
-                key="fab"
-                style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center" }}
-              >
-                <Link href="/add" style={{ display: "block", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}>
-                  <div
-                    style={{
-                      width: 52,
-                      height: 52,
-                      borderRadius: "50%",
-                      background: "linear-gradient(135deg,#7B6EF6,#2DD4BF)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "4px solid #0B0F1E",
-                      marginTop: -18,
-                      boxShadow: "0 4px 18px rgba(123,110,246,.6), 0 2px 8px rgba(0,0,0,.3)",
-                      marginBottom: 20,
-                    }}
+        <div style={{ height: 62, display: "flex", alignItems: "flex-end", padding: "0 12px", position: "relative" }}>
+          {NAV.map((item) => {
+            if (!item) {
+              return (
+                <div
+                  key="fab"
+                  style={{ flex: 1, display: "flex", alignItems: "flex-start", justifyContent: "center" }}
+                >
+                  <button
+                    onClick={() => navigate("/add")}
+                    style={{ background: "none", border: "none", padding: 0, cursor: "pointer", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}
                   >
-                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </div>
-                </Link>
-              </div>
+                    <div
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: "50%",
+                        background: "linear-gradient(135deg,#7B6EF6,#2DD4BF)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "4px solid #0B0F1E",
+                        marginTop: -18,
+                        boxShadow: "0 4px 18px rgba(123,110,246,.6), 0 2px 8px rgba(0,0,0,.3)",
+                        marginBottom: 20,
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </div>
+                  </button>
+                </div>
+              );
+            }
+
+            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+
+            return (
+              <button
+                key={item.href}
+                onClick={() => navigate(item.href)}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 6,
+                  paddingBottom: 10,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  WebkitTapHighlightColor: "transparent",
+                } as React.CSSProperties}
+              >
+                <div
+                  style={{
+                    lineHeight: 0,
+                    transform: active ? "scale(1.15)" : "scale(1)",
+                    transition: "transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                  }}
+                >
+                  {item.icon(active)}
+                </div>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: active ? 600 : 500,
+                    color: active ? "#7B6EF6" : "#4A5568",
+                    letterSpacing: "0.24px",
+                    lineHeight: 1,
+                    transition: "color 0.2s ease",
+                  }}
+                >
+                  {item.label}
+                </span>
+              </button>
             );
-          }
+          })}
+        </div>
 
-          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
-                paddingBottom: 10,
-                textDecoration: "none",
-                WebkitTapHighlightColor: "transparent",
-              } as React.CSSProperties}
-            >
-              <div
-                style={{
-                  lineHeight: 0,
-                  transform: active ? "scale(1.15)" : "scale(1)",
-                  transition: "transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                }}
-              >
-                {item.icon(active)}
-              </div>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: active ? 600 : 500,
-                  color: active ? "#7B6EF6" : "#4A5568",
-                  letterSpacing: "0.24px",
-                  lineHeight: 1,
-                  transition: "color 0.2s ease",
-                }}
-              >
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-
-      <div className="pb-safe" />
-    </nav>
+        <div className="pb-safe" />
+      </nav>
+    </>
   );
 }
 
