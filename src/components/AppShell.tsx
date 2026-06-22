@@ -507,10 +507,10 @@ export default function AppShell({
   return (
     <>
       {/* Mobile */}
-      <div className="lg:hidden flex flex-col min-h-dvh" style={{ background: "#0B0F1E" }}>
+      <div className="lg:hidden flex flex-col h-dvh" style={{ background: "#0B0F1E" }}>
         {pathname !== "/" && <MobileTopbar user={user} />}
         <main
-          className="flex-1"
+          className="flex-1 overflow-y-auto"
           style={{
             paddingTop: pathname === "/" ? "env(safe-area-inset-top, 0px)" : 0,
             paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",

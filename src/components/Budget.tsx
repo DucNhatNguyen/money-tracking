@@ -635,8 +635,7 @@ function MobileBudget({ month, year, items, totalBudget, totalSpent, availableCa
           top: 0,
           zIndex: 20,
           background: "#0B0F1E",
-          marginTop: "calc(-1 * env(safe-area-inset-top, 0px))",
-          padding: "calc(env(safe-area-inset-top, 0px) + 8px) 24px 14px",
+          padding: "12px 24px 14px",
           borderBottom: "1px solid rgba(255,255,255,.05)",
         }}
       >
