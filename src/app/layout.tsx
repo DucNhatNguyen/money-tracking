@@ -15,6 +15,10 @@ export const viewport: Viewport = {
   themeColor: "#7B6EF6",
   width: "device-width",
   initialScale: 1,
+  // Lock zoom in the installed PWA — prevents iOS auto-zooming when a <16px
+  // input gains focus (and the zoom level sticking afterwards).
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

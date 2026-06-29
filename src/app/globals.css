@@ -13,6 +13,12 @@
 html,
 body {
   height: 100%;
+  /* Stop iOS from auto-inflating text on rotation / standalone load */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Disable double-tap-to-zoom and pinch glitches in the installed PWA */
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
 }
 
 body {

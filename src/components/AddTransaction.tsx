@@ -172,23 +172,39 @@ export default function AddTransaction({
     </button>
   );
 
+  const headerRow = (
+    <div style={{ padding: "16px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <button type="button" onClick={() => router.back()}
+        style={{ width: 42, height: 42, borderRadius: 13, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round">
+          <path d="M19 12H5M12 5l-7 7 7 7" />
+        </svg>
+      </button>
+      <span style={{ color: "#E2E8F0", fontSize: 16, fontWeight: 700 }}>Thêm giao dịch</span>
+      <div style={{ width: 42 }} />
+    </div>
+  );
+
   return (
     <div style={{ background: "#0B0F1E", minHeight: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Header */}
-      <div style={{ padding: "16px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <button type="button" onClick={() => router.back()}
-          style={{ width: 42, height: 42, borderRadius: 13, background: "rgba(255,255,255,.06)", border: "1px solid rgba(255,255,255,.08)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", WebkitTapHighlightColor: "transparent" } as React.CSSProperties}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-        </button>
-        <span style={{ color: "#E2E8F0", fontSize: 16, fontWeight: 700 }}>Thêm giao dịch</span>
-        <div style={{ width: 42 }} />
-      </div>
-
       {/* ── MOBILE layout (default, hidden on lg) ── */}
       <div className="lg:hidden" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        {typeToggle}
+        {/* Sticky: header + type tabs stay pinned while the form scrolls */}
+        <div
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 20,
+            background: "#0B0F1E",
+            marginTop: "calc(-1 * env(safe-area-inset-top, 0px))",
+            paddingTop: "env(safe-area-inset-top, 0px)",
+            paddingBottom: 14,
+            borderBottom: "1px solid rgba(255,255,255,.05)",
+          }}
+        >
+          {headerRow}
+          {typeToggle}
+        </div>
         {amountDisplay}
         {numpad}
         {categoryGrid}
@@ -206,32 +222,35 @@ export default function AddTransaction({
       </div>
 
       {/* ── DESKTOP layout (hidden on mobile, shown on lg) ── */}
-      <div className="hidden lg:flex" style={{ flex: 1, gap: 0 }}>
-        {/* Left column: type toggle + amount + numpad */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: "1px solid rgba(255,255,255,.06)", padding: "0 0 32px" }}>
-          {typeToggle}
-          {amountDisplay}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            {numpad}
+      <div className="hidden lg:flex" style={{ flex: 1, flexDirection: "column" }}>
+        {headerRow}
+        <div style={{ flex: 1, display: "flex", gap: 0 }}>
+          {/* Left column: type toggle + amount + numpad */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: "1px solid rgba(255,255,255,.06)", padding: "0 0 32px" }}>
+            {typeToggle}
+            {amountDisplay}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              {numpad}
+            </div>
           </div>
-        </div>
 
-        {/* Right column: categories + date + note + submit */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "0 0 32px" }}>
-          <div style={{ flex: 1 }}>
-            {categoryGrid}
-            {dateInput}
-            {noteInput}
-            {errorBanner}
+          {/* Right column: categories + date + note + submit */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "0 0 32px" }}>
+            <div style={{ flex: 1 }}>
+              {categoryGrid}
+              {dateInput}
+              {noteInput}
+              {errorBanner}
+            </div>
+            <form action={formAction} style={{ padding: "14px 20px 0", flexShrink: 0 }}>
+              <input type="hidden" name="type" value={type} />
+              <input type="hidden" name="amount" value={raw} />
+              <input type="hidden" name="categoryId" value={categoryId} />
+              <input type="hidden" name="note" value={note} />
+              <input type="hidden" name="date" value={date} />
+              {saveBtn}
+            </form>
           </div>
-          <form action={formAction} style={{ padding: "14px 20px 0", flexShrink: 0 }}>
-            <input type="hidden" name="type" value={type} />
-            <input type="hidden" name="amount" value={raw} />
-            <input type="hidden" name="categoryId" value={categoryId} />
-            <input type="hidden" name="note" value={note} />
-            <input type="hidden" name="date" value={date} />
-            {saveBtn}
-          </form>
         </div>
       </div>
     </div>
