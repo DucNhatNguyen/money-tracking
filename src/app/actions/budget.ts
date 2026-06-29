@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { getDefaultCategories } from "@/lib/queries";
 
 export async function getBudgetData(month: number, year: number) {
   const session = await getSession();
@@ -24,10 +25,7 @@ export async function getBudgetData(month: number, year: number) {
       },
       select: { amount: true, categoryId: true },
     }),
-    prisma.category.findMany({
-      where: { isDefault: true },
-      orderBy: { name: "asc" },
-    }),
+    getDefaultCategories(),
   ]);
 
   // Sum actual spending by category

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { getDefaultCategories } from "@/lib/queries";
 import AddTransaction from "@/components/AddTransaction";
 
 function toDateStr(d: Date): string {
@@ -30,11 +30,7 @@ export default async function AddPage({
     }
   }
 
-  const categories = await prisma.category.findMany({
-    where: { isDefault: true },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true, emoji: true, color: true },
-  });
+  const categories = await getDefaultCategories();
 
   return <AddTransaction categories={categories} defaultDate={defaultDate} todayStr={todayStr} />;
 }

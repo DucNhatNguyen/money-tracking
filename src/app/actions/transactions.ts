@@ -68,64 +68,81 @@ export async function getReportData(month: number, year: number) {
   const session = await getSession();
   if (!session.userId) return null;
 
-  // One query covering 6 months back through current month end
+  const userId = session.userId;
+
   let startMonth = month - 5;
   let startYear = year;
   while (startMonth <= 0) { startMonth += 12; startYear--; }
 
   const rangeStart = new Date(startYear, startMonth - 1, 1);
   const rangeEnd = new Date(year, month, 0, 23, 59, 59, 999);
-
-  const allTxs = await prisma.transaction.findMany({
-    where: { userId: session.userId, date: { gte: rangeStart, lte: rangeEnd } },
-    select: {
-      type: true,
-      amount: true,
-      date: true,
-      category: { select: { id: true, name: true, emoji: true, color: true } },
-    },
-  });
-
-  // Current month filter
   const currentStart = new Date(year, month - 1, 1);
   const currentEnd = new Date(year, month, 0, 23, 59, 59, 999);
-  const currentTxs = allTxs.filter(
-    (tx) => tx.date >= currentStart && tx.date <= currentEnd
-  );
 
-  const income = currentTxs
-    .filter((t) => t.type === "INCOME")
-    .reduce((s, t) => s + Number(t.amount), 0);
-  const expense = currentTxs
-    .filter((t) => t.type === "EXPENSE")
-    .reduce((s, t) => s + Number(t.amount), 0);
+  // 3 queries chạy song song — DB làm aggregation, không kéo raw rows về JS
+  const [monthTotals, catBreakdown, trendRaw] = await Promise.all([
+    // 1. Tổng thu/chi tháng hiện tại — tối đa 2 rows
+    prisma.transaction.groupBy({
+      by: ["type"],
+      where: { userId, date: { gte: currentStart, lte: currentEnd } },
+      _sum: { amount: true },
+    }),
 
-  // Expense breakdown by category for current month
-  const catMap = new Map<string, { name: string; emoji: string; color: string; total: number }>();
-  for (const tx of currentTxs.filter((t) => t.type === "EXPENSE")) {
-    const existing = catMap.get(tx.category.id);
-    if (existing) existing.total += Number(tx.amount);
-    else catMap.set(tx.category.id, { name: tx.category.name, emoji: tx.category.emoji, color: tx.category.color, total: Number(tx.amount) });
+    // 2. Chi tiêu theo danh mục tháng hiện tại — JOIN + GROUP BY trong DB
+    prisma.$queryRaw<{ id: string; name: string; emoji: string; color: string; total: number }[]>`
+      SELECT c.id, c.name, c.emoji, c.color, SUM(t.amount)::float AS total
+      FROM "Transaction" t
+      JOIN "Category" c ON t."categoryId" = c.id
+      WHERE t."userId" = ${userId}
+        AND t.type = 'EXPENSE'::"TransactionType"
+        AND t.date >= ${currentStart}
+        AND t.date <= ${currentEnd}
+      GROUP BY c.id, c.name, c.emoji, c.color
+      ORDER BY total DESC
+    `,
+
+    // 3. Trend 6 tháng — GROUP BY month trong DB, tối đa 12 rows
+    prisma.$queryRaw<{ year: number; month: number; type: string; total: number }[]>`
+      SELECT
+        EXTRACT(YEAR FROM date)::int AS year,
+        EXTRACT(MONTH FROM date)::int AS month,
+        type::text AS type,
+        SUM(amount)::float AS total
+      FROM "Transaction"
+      WHERE "userId" = ${userId}
+        AND date >= ${rangeStart}
+        AND date <= ${rangeEnd}
+      GROUP BY EXTRACT(YEAR FROM date), EXTRACT(MONTH FROM date), type
+      ORDER BY EXTRACT(YEAR FROM date), EXTRACT(MONTH FROM date)
+    `,
+  ]);
+
+  const income = Number(monthTotals.find((t) => t.type === "INCOME")?._sum.amount ?? 0);
+  const expense = Number(monthTotals.find((t) => t.type === "EXPENSE")?._sum.amount ?? 0);
+
+  const categories = catBreakdown.map((c) => ({
+    ...c,
+    total: Number(c.total),
+    pct: expense > 0 ? Math.round((Number(c.total) / expense) * 100) : 0,
+  }));
+
+  // Dựng mảng trend đủ 6 tháng (kể cả tháng không có giao dịch)
+  const trendMap = new Map<string, { income: number; expense: number }>();
+  for (const row of trendRaw) {
+    const key = `${row.year}-${row.month}`;
+    const entry = trendMap.get(key) ?? { income: 0, expense: 0 };
+    if (row.type === "INCOME") entry.income = Number(row.total);
+    else entry.expense = Number(row.total);
+    trendMap.set(key, entry);
   }
-  const categories = Array.from(catMap.values())
-    .sort((a, b) => b.total - a.total)
-    .map((c) => ({ ...c, pct: expense > 0 ? Math.round((c.total / expense) * 100) : 0 }));
 
-  // 6-month trend
   const trend: { month: number; year: number; income: number; expense: number }[] = [];
   for (let i = 5; i >= 0; i--) {
     let m = month - i;
     let y = year;
     while (m <= 0) { m += 12; y--; }
-    const mStart = new Date(y, m - 1, 1);
-    const mEnd = new Date(y, m, 0, 23, 59, 59, 999);
-    const mTxs = allTxs.filter((tx) => tx.date >= mStart && tx.date <= mEnd);
-    trend.push({
-      month: m,
-      year: y,
-      income: mTxs.filter((t) => t.type === "INCOME").reduce((s, t) => s + Number(t.amount), 0),
-      expense: mTxs.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + Number(t.amount), 0),
-    });
+    const d = trendMap.get(`${y}-${m}`) ?? { income: 0, expense: 0 };
+    trend.push({ month: m, year: y, ...d });
   }
 
   return { income, expense, balance: income - expense, categories, trend };
@@ -157,6 +174,7 @@ export async function getDashboardData() {
   ]);
 
   return {
+    name: session.name,
     income: Number(income._sum.amount ?? 0),
     expense: Number(expense._sum.amount ?? 0),
     balance: Number(income._sum.amount ?? 0) - Number(expense._sum.amount ?? 0),

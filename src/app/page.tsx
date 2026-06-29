@@ -1,19 +1,20 @@
 import { getDashboardData } from "@/app/actions/transactions";
-import { getSession } from "@/lib/session";
+import { redirect } from "next/navigation";
 import Dashboard from "@/components/Dashboard";
 
 export default async function HomePage() {
-  const [session, data] = await Promise.all([getSession(), getDashboardData()]);
+  const data = await getDashboardData();
+  if (!data) redirect("/login");
 
   return (
     <Dashboard
-      userName={session.name ?? "Gia đình"}
-      income={data?.income ?? 0}
-      expense={data?.expense ?? 0}
-      balance={data?.balance ?? 0}
-      month={data?.month ?? new Date().getMonth() + 1}
-      year={data?.year ?? new Date().getFullYear()}
-      recentTransactions={(data?.recent ?? []).map((tx) => ({
+      userName={data.name ?? "Gia đình"}
+      income={data.income}
+      expense={data.expense}
+      balance={data.balance}
+      month={data.month}
+      year={data.year}
+      recentTransactions={data.recent.map((tx) => ({
         id: tx.id,
         note: tx.note,
         amount: Number(tx.amount),
